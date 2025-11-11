@@ -1,0 +1,9 @@
+lighting,visibility,crowd_density,cctv,overall_safe
+4,4,low,yes,1
+3,3,medium,yes,1
+2,2,high,no,0
+1,1,high,no,0
+4,3,medium,yes,1
+2,1,low,no,0
+3,4,high,yes,1
+1,2,medium,no,0
