@@ -24,6 +24,7 @@
     table.audits td, table.audits th { padding:8px 6px; border-bottom:1px solid rgba(255,255,255,0.03); text-align:left; }
     .small-muted { color:var(--muted); font-size:0.95rem; }
     .actions { display:flex; gap:8px; margin-top:12px; }
+    #auditsChart { width:100%; height:140px; display:block; border-radius:8px; margin-top:12px; background:transparent; }
     @media (max-width:880px) {
       .dashboard-grid { grid-template-columns: 1fr; }
       #userMap { height:260px; }
@@ -44,7 +45,7 @@
         <aside>
           <div class="card" id="profileCard" aria-label="Profile card">
             <div style="display:flex;gap:12px;align-items:center">
-              <img id="avatarImg" class="profile-avatar" src="/assets/google_icon.svg" alt="avatar">
+              <img id="avatarImg" class="profile-avatar" src="/assets/default_avatar.png" alt="avatar">
               <div>
                 <div id="userName" style="font-weight:700">User</div>
                 <div id="userEmail" class="small-muted">email@example.com</div>
@@ -71,7 +72,7 @@
           <div class="card" style="margin-top:14px">
             <h4 style="margin:0 0 8px 0">Quick Links</h4>
             <nav class="small-muted" aria-label="Quick links">
-              <a href="/pages/submit_audit.html">Help Others! — submit audit</a><br/>
+              <a href="/pages/help_others.html">Submit Audit</a><br/>
               <a href="/pages/heatmap.html">Explore heatmap</a><br/>
               <a href="/pages/safe_route.html">Find safe routes</a>
             </nav>
@@ -84,6 +85,8 @@
             <h3 style="margin-top:0">Your contribution map</h3>
             <div id="userMap" role="region" aria-label="Map showing contributions">Loading map…</div>
             <div class="small-muted" style="margin-top:8px">Your submitted audit points are shown above.</div>
+            <!-- Monthly chart canvas -->
+            <canvas id="auditsChart" width="800" height="140" aria-label="Audits per month chart"></canvas>
           </div>
 
           <div class="card" style="margin-top:16px">
@@ -109,9 +112,12 @@
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <!-- Leaflet heat plugin (optional, used by initUserContribMap if present) -->
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 
   <!-- app scripts -->
-  <script type="module" src="/js/dashboard.js"></script>
   <script type="module" src="/js/app.js"></script>
+  <script type="module" src="/js/dashboard.js"></script>
+
 </body>
 </html>

@@ -82,16 +82,78 @@
     </div>
   </div>
 
-  <!-- Firebase SDKs -->
+  <!-- Firebase compat SDKs (must be before importing auth.js) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 
-  <!-- auth helper and app injector -->
+
+  <!-- Load auth module early so onAuthStateChanged is installed ASAP -->
   <script type="module" src="/js/auth.js"></script>
+
+  <!-- Robust auto-redirect helper:
+       - if ?next= is present, redirect there when sign-in completes
+       - fast-path: if stored user already exists, redirect immediately
+       - otherwise poll for up to ~4s and then give up (page stays for manual action)
+  -->
+  <script type="module">
+    import { getStoredUser, getIdToken, handleRedirectAfterAuth } from '/js/auth.js';
+
+    (async function authAutoRedirect() {
+      // only redirect if a next param exists (so auth.html can still be used standalone)
+      let next = null;
+      try {
+        const p = new URLSearchParams(window.location.search).get('next');
+        if (p && p.startsWith('/')) next = p;
+      } catch (e) { next = null; }
+
+      if (!next) {
+        // no requested return path — do not auto-redirect here; we will let onAuthStateChanged handle default redirect
+        return;
+      }
+
+      // fast path: if stored user exists, redirect immediately
+      const stored = getStoredUser();
+      if (stored) {
+        handleRedirectAfterAuth(); // respects ?next=
+        return;
+      }
+
+      // poll several signals for a short while
+      const start = Date.now();
+      const timeoutMs = 4000;
+      const interval = 300;
+
+      async function checkNow() {
+        try {
+          if (getStoredUser()) return true;
+          if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) return true;
+          const token = await getIdToken();
+          if (token) return true;
+        } catch (e) {
+          // ignore
+        }
+        return false;
+      }
+
+      const poll = setInterval(async () => {
+        if (await checkNow()) {
+          clearInterval(poll);
+          handleRedirectAfterAuth();
+        } else if (Date.now() - start > timeoutMs) {
+          clearInterval(poll);
+        }
+      }, interval);
+
+      // safety stop
+      setTimeout(() => clearInterval(poll), timeoutMs + 200);
+    })();
+  </script>
+
+  <!-- injector and UI wiring -->
   <script type="module" src="/js/app.js"></script>
 
   <script>
-    // auto-detect URL param and set initial mode; also allow toggling via buttons
+    // UI wiring and button behaviour
     document.addEventListener('DOMContentLoaded', () => {
       const btnLogin = document.getElementById('btnLoginMode');
       const btnSignup = document.getElementById('btnSignupMode');
@@ -118,25 +180,19 @@
         }
       }
 
-      // Parse ?mode= from URL
       const urlParams = new URLSearchParams(window.location.search);
       const modeParam = (urlParams.get('mode') || '').toLowerCase();
-      if (modeParam === 'signup') {
-        setModeUI('signup');
-      } else {
-        setModeUI('login');
-      }
+      if (modeParam === 'signup') setModeUI('signup');
+      else setModeUI('login');
 
-      // Toggle buttons
       btnLogin.addEventListener('click', () => setModeUI('login'));
       btnSignup.addEventListener('click', () => setModeUI('signup'));
 
-      // Google button handler uses oauthSignIn from /js/auth.js
+      // Google button handler uses oauthSignIn from /js/auth.js via dynamic import
       const googleBtn = document.getElementById('googleBtn');
       googleBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         const mode = document.getElementById('btnSignupMode').classList.contains('active') ? 'signup' : 'login';
-        // If in signup mode enforce terms checkbox
         if (mode === 'signup') {
           const termsOk = document.getElementById('termsCheckbox').checked;
           if (!termsOk) {
@@ -146,25 +202,25 @@
         }
         document.getElementById('authFeedback').textContent = '';
         googleBtn.disabled = true;
+        const oldText = googleBtn.querySelector('span').textContent;
         googleBtn.querySelector('span').textContent = mode === 'signup' ? 'Signing up...' : 'Signing in...';
         try {
-          // dynamic import ensures module initialized
           const authModule = await import('/js/auth.js');
-          const oauthSignIn = authModule.oauthSignIn || authModule.default?.oauthSignIn;
-          await oauthSignIn('google', { redirectPath: '/oauth-callback.html' });
-          // oauthSignIn handles redirect/modal itself on success
+          const oauthSignIn = authModule.oauthSignIn || (authModule.default && authModule.default.oauthSignIn);
+          await oauthSignIn('google');
+          // oauthSignIn will either return (popup) or navigate away (redirect)
+          // onAuthStateChanged in auth.js will handle final redirect; if popup sign-in completes but client did not redirect,
+          // the auto-redirect helper above (or onAuthStateChanged) will catch it.
         } catch (err) {
           console.error('Auth error', err);
-          document.getElementById('authFeedback').textContent = err.message || 'Authentication failed.';
+          document.getElementById('authFeedback').textContent = (err && err.message) ? err.message : 'Authentication failed.';
           googleBtn.disabled = false;
-          googleBtn.querySelector('span').textContent = mode === 'signup' ? 'Sign up with Google' : 'Continue with Google';
+          googleBtn.querySelector('span').textContent = oldText;
         }
       });
 
-      // If URL contains mode=signup, ensure the signup button receives focus for keyboard users.
-      if (modeParam === 'signup') {
-        btnSignup.focus();
-      }
+      // focus signup button if mode=signup
+      if (modeParam === 'signup') btnSignup.focus();
     });
   </script>
 </body>

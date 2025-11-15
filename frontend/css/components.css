@@ -35,6 +35,19 @@
 }
 .header-nav a:hover { color:var(--text) }
 
+html, body {
+  height: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+footer {
+  margin-top: auto;   /* pushes footer to bottom */
+  text-align: center; /* centers content horizontally */
+  width: 100%;
+}
+
 .help-cta {
   color:var(--text);
   background: linear-gradient(90deg,var(--primary),var(--accent));
@@ -103,3 +116,177 @@
 .info-card h3{margin-top:4px;margin-bottom:8px}
 .info-card p{color:var(--muted);margin-bottom:8px}
 .info-card .link{color:var(--muted);text-decoration:none;font-weight:700}
+
+.header-avatar { width:36px; height:36px; border-radius:8px; object-fit:cover; }
+.profile-menu .menu-item { color:var(--text); text-decoration:none; }
+.profile-menu .menu-item:focus, .profile-menu .menu-item:hover { background: rgba(255,255,255,0.03); outline:none; }
+
+/* Header user/menu UI — polished glass style, higher z-index so it can't be clipped */
+.header-user {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 16px;
+}
+
+/* Avatar button: hover animates border to --accent */
+.avatar-btn {
+  border: none;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  padding: 4px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.45);
+  transition: transform .12s ease;
+  outline: none;
+}
+.avatar-btn:active { transform: scale(.98); }
+
+.avatar {
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  border:2px solid rgba(255,255,255,0.06);
+  object-fit:cover;
+  transition: border-color .22s ease, box-shadow .22s ease, transform .12s ease;
+}
+.avatar-btn:hover .avatar,
+.avatar-btn:focus .avatar {
+  border-color: var(--accent);
+  box-shadow: 0 6px 18px rgba(88,66,255,0.15);
+  transform: translateY(-1px);
+}
+
+/* Menu (floating panel) */
+.user-menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  min-width: 220px;
+  max-width: 360px;
+  background: linear-gradient(180deg, rgba(18,18,22,0.95), rgba(18,18,22,0.90));
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 12px 50px rgba(2,6,23,0.6);
+  border: 1px solid rgba(255,255,255,0.04);
+  backdrop-filter: blur(8px) saturate(120%);
+  display: none; /* toggled by JS */
+  z-index: 2200;
+  transform-origin: top right;
+  overflow: hidden;
+}
+
+/* User info header */
+.user-info {
+  display:flex;
+  gap:10px;
+  align-items:center;
+  padding:10px;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+  margin-bottom:6px;
+}
+.user-info-avatar {
+  width:44px;
+  height:44px;
+  border-radius:8px;
+  object-fit:cover;
+  border:1px solid rgba(255,255,255,0.04);
+}
+.user-info-text { overflow:hidden; min-width:0; }
+.user-name {
+  font-weight:700;
+  color:var(--text);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.user-email {
+  font-size:0.86rem;
+  color:var(--muted);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* menu item styles */
+.user-menu a, .user-menu button {
+  display: block;
+  padding: 10px 12px;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+  background: transparent;
+  border: 0;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.user-menu a:hover, .user-menu button:hover {
+  background: rgba(255,255,255,0.03);
+  color: white;
+}
+
+/* Logout stands out */
+.logout-btn { color: #ffc3b3; font-weight:700; }
+
+/* small screens: pin right */
+@media (max-width: 900px) {
+  .user-menu { right: 8px; left: auto; min-width: 170px; }
+}
+
+.btn-outline {
+  color: #fff; /* or a stronger contrast */
+  border: 1px solid rgba(255,255,255,0.3);
+  background: transparent;
+}
+
+.btn-ghost {
+  color: #fff;
+  border: none;
+  background: transparent;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px; /* remove inline style, keep consistent in CSS */
+  justify-content: flex-end; /* pushes buttons to the right */
+}
+.field select {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08); /* subtle border */
+  background: rgba(255,255,255,0.05);       /* translucent dark background */
+  color: var(--text);                       /* matches your card text color */
+  font-size: 14px;
+  font-weight: 500;
+  appearance: none;                         /* remove default arrow */
+  transition: border-color 0.2s, background 0.2s;
+  background-image: url("data:image/svg+xml;utf8,<svg fill='white' height='12' width='12' xmlns='http://www.w3.org/2000/svg'><path d='M2 4l4 4 4-4z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px;
+  padding-right: 32px; /* space for arrow */
+}
+
+/* Dropdown options */
+.field select option {
+  background: #1c1c1c; /* solid dark background for list */
+  color: var(--text);  /* consistent readable text */
+}
+
+/* Hover & focus states */
+.field select:hover {
+  border-color: rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.08);
+}
+
+.field select:focus {
+  outline: none;
+  border-color: #4a90e2; /* accent color highlight */
+  background: rgba(255,255,255,0.1);
+}
