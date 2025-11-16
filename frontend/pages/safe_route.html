@@ -23,24 +23,31 @@
       <!-- Left form (30%) -->
       <aside class="card left-panel" aria-labelledby="routeTitle">
         <h1 id="routeTitle">Safe Route</h1>
-        <p class="hint">Enter start and end points or pick them on the map. The system will evaluate candidate routes and highlight the safest option.</p>
+        <p class="hint">Enter start and end addresses (or coordinates) or pick them on the map. The system will evaluate candidate routes and highlight the safest option.</p>
 
         <form id="routeForm" novalidate>
           <div class="field">
-            <label for="startInput">Start (lat, lng)</label>
-            <input id="startInput" type="text" placeholder="12.970000, 77.590000" />
+            <label for="startInput">Start (address or lat, lng)</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input id="startInput" type="text" placeholder="Enter start address or coordinates" style="flex:1;" />
+              <button id="useCurrentBtn" class="btn-outline" type="button" title="Use my current location">Use my location</button>
+            </div>
+            <div id="startSuggestions" class="suggestions" aria-hidden="true"></div>
           </div>
 
           <div class="field">
-            <label for="endInput">End (lat, lng)</label>
-            <input id="endInput" type="text" placeholder="12.980000, 77.600000" />
+            <label for="endInput">End (address or lat, lng)</label>
+            <input id="endInput" type="text" placeholder="Enter destination address or coordinates" />
+            <div id="endSuggestions" class="suggestions" aria-hidden="true"></div>
           </div>
 
           <div class="field">
             <label for="bandSelect">Time Band</label>
             <select id="bandSelect">
               <option value="night" selected>Night</option>
+              <option value="midnight" selected>MidNight</option>
               <option value="evening">Evening</option>
+              <option value="afternoon">Afternoon</option>
               <option value="morning">Morning</option>
               <option value="overall">Overall</option>
             </select>
