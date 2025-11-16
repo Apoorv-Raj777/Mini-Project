@@ -103,7 +103,7 @@ async function submitAudit() {
       const token = await getIdToken();
       if (token) headers['Authorization'] = `Bearer ${token}`;
     }
-    const res = await fetch('/api/submit_audit', {
+    const res = await fetch('http://127.0.0.1:5000/api/submit_audit', {
       method: 'POST',
       headers,
       body: JSON.stringify(payload)
