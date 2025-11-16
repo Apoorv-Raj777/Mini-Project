@@ -1,70 +1,83 @@
 // /js/api.js
-const DEFAULT_API_BASE = '/'; // can be overridden by window.__API_URL__ (e.g. 'http://localhost:5000')
-const API_BASE = (window.__API_URL__ && window.__API_URL__.replace(/\/$/,'')) || DEFAULT_API_BASE;
-const DEFAULT_TIMEOUT = 30000; // ms
 
-async function maybeAttachAuth(headers = {}) {
+import { getIdToken } from './auth.js';
+
+const DEFAULT_API_BASE = 'http://127.0.0.1:5000/api'; // Set to your backend API base
+const API_BASE = (window.__API_URL__ && window.__API_URL__.replace(/\/$/, '')) || DEFAULT_API_BASE;
+const DEFAULT_TIMEOUT = 30000; // milliseconds
+
+async function attachAuthHeader(headers = {}) {
   try {
-    if (typeof getIdToken === 'function') {
-      const token = await getIdToken();
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-    }
+    const token = typeof getIdToken === 'function' ? await getIdToken() : null;
+    if (token) headers['Authorization'] = `Bearer ${token}`;
   } catch (e) {
-    // silent - proceed without auth header
     console.warn('getIdToken error', e);
   }
   return headers;
 }
 
-function buildUrl(path, params) {
-  const base = path.startsWith('/') ? `${API_BASE.replace(/\/$/, '')}${path}` : (API_BASE + path);
+function buildUrl(path, params = {}) {
+  const base = path.startsWith('/') ? `${API_BASE}${path}` : `${API_BASE}/${path}`;
   if (!params || Object.keys(params).length === 0) return base;
-  const u = new URL(base, window.location.origin);
+  const urlObj = new URL(base, window.location.origin);
   Object.entries(params).forEach(([k, v]) => {
-    if (v === undefined || v === null) return;
-    u.searchParams.set(k, v);
+    if (v !== undefined && v !== null) {
+      urlObj.searchParams.set(k, v);
+    }
   });
-  return u.toString();
+  return urlObj.toString();
 }
 
-async function request(path, { method = 'GET', params = null, body = null, auth = true, headers = {} } = {}) {
+async function apiRequest(path, { method = 'GET', params = null, body = null, headers = {}, auth = true } = {}) {
   const url = buildUrl(path, params);
-  headers = await maybeAttachAuth(headers);
+  if (auth) headers = await attachAuthHeader(headers);
 
-  const opts = { method, headers };
+  const options = { method, headers };
 
   if (body) {
+    // Automatically handle JSON or FormData
     if (body instanceof FormData) {
-      // leave as is
-      opts.body = body;
+      options.body = body;
     } else {
-      opts.headers = { 'Content-Type': 'application/json', ...opts.headers };
-      opts.body = JSON.stringify(body);
+      options.headers = { 'Content-Type': 'application/json', ...options.headers };
+      options.body = JSON.stringify(body);
     }
   }
 
+  // Timeout support
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
-  opts.signal = controller.signal;
+  const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+  options.signal = controller.signal;
 
-  const res = await fetch(url, opts).finally(() => clearTimeout(timer));
+  let response;
+  try {
+    response = await fetch(url, options);
+  } finally {
+    clearTimeout(timeout);
+  }
 
-  const text = await res.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  const text = await response.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
 
-  if (!res.ok) {
-    const err = new Error(`API error ${res.status} ${res.statusText}`);
-    err.status = res.status;
+  if (!response.ok) {
+    const err = new Error(`API error ${response.status} ${response.statusText}`);
+    err.status = response.status;
     err.body = data;
     throw err;
   }
   return data;
 }
 
-export default {
-  get: (path, opts = {}) => request(path, { ...opts, method: 'GET' }),
-  post: (path, body, opts = {}) => request(path, { ...opts, method: 'POST', body }),
-  put: (path, body, opts = {}) => request(path, { ...opts, method: 'PUT', body }),
-  del: (path, opts = {}) => request(path, { ...opts, method: 'DELETE' })
+const api = {
+  get: (path, opts = {}) => apiRequest(path, { ...opts, method: 'GET' }),
+  post: (path, body, opts = {}) => apiRequest(path, { ...opts, method: 'POST', body }),
+  put: (path, body, opts = {}) => apiRequest(path, { ...opts, method: 'PUT', body }),
+  del: (path, opts = {}) => apiRequest(path, { ...opts, method: 'DELETE' })
 };
+
+export default api;

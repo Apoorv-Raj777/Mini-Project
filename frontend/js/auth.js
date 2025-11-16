@@ -228,10 +228,23 @@ export function handleRedirectAfterAuth(defaultPath = '/') {
   }
 }
 
+// Waits until Firebase Auth is initialized and we know the user's true state
+export function onAuthReady() {
+  return new Promise(async (resolve) => {
+    const auth = await initCompatAuthOrThrow();
+    if (auth.currentUser !== null) return resolve(auth.currentUser);
+    const unsub = auth.onAuthStateChanged(user => {
+      unsub();
+      resolve(user);
+    });
+  });
+}
+
 export default {
   oauthSignIn,
   getStoredUser,
   getIdToken,
   logout,
-  handleRedirectAfterAuth
+  handleRedirectAfterAuth,
+  onAuthReady
 };

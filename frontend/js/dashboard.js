@@ -2,7 +2,8 @@
 // Dashboard logic (merged) — includes audits-per-month canvas chart
 // Uses Firebase auth helpers exported from /js/auth.js
 
-import { getIdToken, getStoredUser, logout } from '/js/auth.js';
+import api from '/js/api.js';
+import { getIdToken, getStoredUser, logout, onAuthReady } from '/js/auth.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (id) => document.getElementById(id);
@@ -44,8 +45,8 @@ async function authFetchJson(path, opts = {}) {
    API helpers
    ------------------------- */
 async function fetchUserAudits() {
-  // adjust endpoint if your backend uses another route
-  return await authFetchJson('/api/user/audits', { method: 'GET' });
+  // Now automatically uses correct headers and endpoint
+  return await api.get('/user/audits');
 }
 
 /* -------------------------
@@ -91,9 +92,11 @@ function renderAuditsTable(audits = []) {
                  (a.created_at ? new Date(a.created_at).toLocaleString() : '—');
     const lat = (typeof a.lat === 'number') ? a.lat.toFixed(5) : (a.latitude ?? '—');
     const lng = (typeof a.lng === 'number') ? a.lng.toFixed(5) : (a.longitude ?? '—');
-    const score = (a.calculated_score !== undefined && a.calculated_score !== null)
-                  ? Number(a.calculated_score).toFixed(2)
-                  : (a.score !== undefined ? a.score : '—');
+    const score = (a.safety_score !== undefined && a.safety_score !== null)
+              ? (Number(a.safety_score) * 100).toFixed(1) + '%'
+              : (a.calculated_score !== undefined && a.calculated_score !== null)
+                ? (Number(a.calculated_score) * 100).toFixed(1) + '%'
+                : (a.score !== undefined ? (Number(a.score) * 100).toFixed(1) + '%' : '—')
     tr.innerHTML = `<td>${when}</td><td>${lat}</td><td>${lng}</td><td>${score}</td>`;
     tbody.appendChild(tr);
   });
@@ -119,13 +122,45 @@ function renderOnMap(audits = []) {
     const lat = (typeof a.lat === 'number') ? a.lat : (typeof a.latitude === 'number' ? a.latitude : null);
     const lng = (typeof a.lng === 'number') ? a.lng : (typeof a.longitude === 'number' ? a.longitude : null);
     if (lat === null || lng === null) continue;
-    const score = (a.calculated_score !== undefined) ? a.calculated_score : (a.score !== undefined ? a.score : null);
-    const color = score === null ? '#888' : (score > 0.66 ? '#20c997' : (score > 0.33 ? '#ffbf00' : '#ff6b6b'));
+    const rawVal =
+      a.safety_score ??
+      a.calculated_score ??
+      a.score ??
+      a.safety ??      // alternate field names
+      a.severity ??    // your synthetic generator uses 'severity' = 1 - p_safe
+      null;
+
+    // helper: convert whatever we got into a fraction in 0..1 (or null)
+    function toFraction(value) {
+      if (value === undefined || value === null) return null;
+      const n = Number(value);
+      if (Number.isNaN(n)) return null;
+      // if number looks already like a fraction (<=1.5) treat as fraction,
+      // otherwise treat as percent (e.g. 49.7 -> 0.497)
+      if (Math.abs(n) <= 1.5) {
+        return Math.max(0, Math.min(1, n));
+      }
+      return Math.max(0, Math.min(1, n / 100));
+    }
+
+    const frac = toFraction(rawVal);
+    // format percent string with TWO decimals (Option E)
+    const displayScore = (frac === null) ? '—' : ( (frac * 100).toFixed(2) + '%' );
+
+    // color based on fraction (fallback neutral when unknown)
+    const color = (frac === null) ? '#888' : (frac > 0.66 ? '#20c997' : (frac > 0.33 ? '#ffbf00' : '#ff6b6b'));
+
+    // you can scale radius optionally using frac or leave fixed
     const m = L.circleMarker([lat, lng], {
-      radius: 7, fillColor: color, color: '#fff', weight: 1, fillOpacity: 0.9
+      radius: 7,
+      fillColor: color,
+      color: '#fff',
+      weight: 1,
+      fillOpacity: 0.9
     });
+
     const when = a.timestamp ? new Date(a.timestamp*1000).toLocaleString() : (a.created_at ? new Date(a.created_at).toLocaleString() : '—');
-    m.bindPopup(`<strong>Score:</strong> ${score ?? '—'}<br><strong>When:</strong> ${when}`);
+    m.bindPopup(`<strong>Score:</strong> ${displayScore}<br><strong>When:</strong> ${when}`);
     m.addTo(markersLayer);
     bounds.push([lat, lng]);
   }
@@ -304,22 +339,23 @@ function drawMonthlyAuditChart(canvasId = 'auditsChart', audits = []) {
    ------------------------- */
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    await waitForHeader();
-
-    // Ensure user is present (stored user)
-    const storedUser = getStoredUser();
+    // Wait for Firebase Auth to be fully initialized (prevents premature API calls!)
+    await onAuthReady();
+    let storedUser = getStoredUser();
     if (!storedUser) {
-      // If no stored user, redirect to auth page so they can sign in.
       window.location.href = '/auth.html?next=' + encodeURIComponent(window.location.pathname);
       return;
     }
 
-    // populate profile UI safely
-    const nameEl = el('userName'); if (nameEl) nameEl.textContent = storedUser.name || 'User';
-    const emailEl = el('userEmail'); if (emailEl) emailEl.textContent = storedUser.email || '';
-    const avatarEl = el('avatarImg'); if (avatarEl && storedUser.picture) avatarEl.src = storedUser.picture;
+    // Populate profile UI safely
+    const nameEl = el('userName');
+    if (nameEl) nameEl.textContent = storedUser.name || 'User';
+    const emailEl = el('userEmail');
+    if (emailEl) emailEl.textContent = storedUser.email || '';
+    const avatarEl = el('avatarImg');
+    if (avatarEl && storedUser.picture) avatarEl.src = storedUser.picture;
 
-    // wire profile signout button
+    // Wire profile signout button
     const btnLogout = el('btnLogout');
     if (btnLogout) {
       btnLogout.addEventListener('click', async () => {
@@ -328,26 +364,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    // wire export button
+    // Wire export button
     const btnExport = el('btnExport');
     if (btnExport) btnExport.addEventListener('click', exportCSV);
 
-    // init map (leaflet must be loaded in the page)
+    // Init map (leaflet must be loaded in the page)
     try {
       initMap();
     } catch (e) {
       console.warn('initMap error', e);
-      const um = el('userMap'); if (um) um.textContent = 'Map cannot be initialized.';
+      const um = el('userMap');
+      if (um) um.textContent = 'Map cannot be initialized.';
     }
 
-    // fetch and render audits
+    // Fetch and render audits
     let audits = [];
     try {
       audits = await fetchUserAudits();
       if (!Array.isArray(audits)) audits = [];
       renderStats(audits);
       renderAuditsTable(audits);
-      // draw chart after table/stats
       try { drawMonthlyAuditChart('auditsChart', audits); } catch (e) { console.warn('chart draw failed', e); }
       renderOnMap(audits);
     } catch (err) {
@@ -356,10 +392,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = '/auth.html?next=' + encodeURIComponent(window.location.pathname);
         return;
       }
-      // otherwise show empty state
       renderStats([]);
       renderAuditsTable([]);
-      const emptyEl = el('auditsEmpty'); if (emptyEl) {
+      const emptyEl = el('auditsEmpty');
+      if (emptyEl) {
         emptyEl.style.display = 'block';
         emptyEl.textContent = 'Could not load your audits. Try again later.';
       }

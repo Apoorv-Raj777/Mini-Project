@@ -22,8 +22,8 @@
 
 console.log('map.js loaded');
 
-const DEFAULT_CENTER = [28.6139, 77.2090]; // New Delhi
-const DEFAULT_ZOOM = 13;
+const DEFAULT_CENTER = [13.13, 77.57]; // BMSIT, Bangalore
+const DEFAULT_ZOOM = 15;
 
 /**
  * Try to get user geolocation, fallback to DEFAULT_CENTER.
