@@ -16,3 +16,5 @@ audits_data.json
 # System files
 .DS_Store
 Thumbs.db
+
+secrets/firebase-service-account.json
