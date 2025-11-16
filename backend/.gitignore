@@ -17,4 +17,4 @@ audits_data.json
 .DS_Store
 Thumbs.db
 
-secrets/firebase-service-account.json
+services/secrets/firebase-service-account.json
