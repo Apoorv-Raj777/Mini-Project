@@ -4,16 +4,7 @@
 // If you see "fb.auth is not a function" in the console, it means the page has a Firebase object
 // that is NOT the compat SDK (firebase-app-compat + firebase-auth-compat). To fix: include the compat
 // scripts BEFORE this module, or remove any modular SDK scripts that conflict.
-
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyCxKi1tJGX5u3vaubrsN4HyE_vh4lHwEnI",
-  authDomain: "sarthi-f8514.firebaseapp.com",
-  projectId: "sarthi-f8514",
-  storageBucket: "sarthi-f8514.firebasestorage.app",
-  messagingSenderId: "96970206340",
-  appId: "1:96970206340:web:b3c3f1f43e9dc8237b66d1",
-  measurementId: "G-BNZQ393PXH"
-};
+import { FIREBASE_CONFIG } from './firebase-config.js';
 
 const LOCAL_KEY = 'sarthi_user_v1';
 
